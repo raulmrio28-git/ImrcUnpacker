@@ -7,6 +7,8 @@
 ** History:
 ** when			who				what, where, why
 ** MM-DD-YYYY-- --------------- --------------------------------
+** 07/28/2024	raulmrio28-git	TK 1.0 compatibility (block offsets instead of
+**								sizes)						
 ** 05/16/2024	raulmrio28-git	Initial version
 ** ===========================================================================
 */
@@ -36,6 +38,11 @@
 **  Type Definitions
 **----------------------------------------------------------------------------
 */
+
+typedef struct {
+	LONG nCmdOffs;
+	LONG nDataOffs;
+} ImasterDataDecomp_BlockInfo;
 
 typedef struct {
 	LONG nCmdSize;

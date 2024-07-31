@@ -29,6 +29,7 @@
 **----------------------------------------------------------------------------
 */
 
+#define ImasterFlashRead(d,a,l)		QuramFlashRead(a,d,l)
 #define ImasterMemAlloc			QuramMemAlloc
 #define ImasterMemFree			QuramMemFree
 #define ImasterMemcpy			QuramMemcpy
@@ -61,9 +62,9 @@
 **----------------------------------------------------------------------------
 */
 
-VOID*	QuramFlashRead(LONG pAddress, VOID* pDest, SIZE_T length);
+VOID*	QuramFlashRead(VOID* pAddress, VOID* pDest, SIZE_T length);
 VOID*	QuramMemAlloc(SIZE_T size);
 VOID    QuramMemFree(VOID* pMem);
-VOID*	QuramMemcpy(VOID* pDest, CONST VOID* pSrc, SIZE_T length);
+LONG	QuramMemcpy(VOID* pDest, CONST VOID* pSrc, SIZE_T length);
 
 #endif //TKCOMMON_H

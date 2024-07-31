@@ -52,9 +52,9 @@
 **----------------------------------------------------------------------------
 */
 
-VOID*	QuramFlashRead(LONG pAddress, VOID* pDest, SIZE_T length)
+VOID*	QuramFlashRead(VOID* pAddress, VOID* pDest, SIZE_T length)
 {
-	return QuramMemcpy(pDest, (VOID*)pAddress, length);
+	return QuramMemcpy(pDest, pAddress, length);
 }
 
 VOID*   QuramMemAlloc(SIZE_T size)
@@ -67,7 +67,7 @@ VOID    QuramMemFree(VOID* pMem)
 	free(pMem);
 }
 
-VOID*	QuramMemcpy(VOID* pDest, const VOID* pSrc, SIZE_T length)
+LONG	QuramMemcpy(VOID* pDest, const VOID* pSrc, SIZE_T length)
 {
 	return memcpy(pDest, pSrc, length);
 }

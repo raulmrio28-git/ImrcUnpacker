@@ -1,7 +1,7 @@
 /*
 ** ===========================================================================
-** File: tk15.h
-** Description: TK1.5 functions externs.
+** File: tk10.h
+** Description: TK1.0 functions externs.
 ** Copyright (c) 2024 raulmrio28-git and contributors.
 ** Format Copyright (C) 2006 I-master/Quram Co. Ltd.
 ** History:
@@ -11,8 +11,8 @@
 ** ===========================================================================
 */
 
-#ifndef TK15_H_
-#define TK15_H_
+#ifndef TK10_H_
+#define TK10_H_
 
 /*
 **----------------------------------------------------------------------------
@@ -73,13 +73,15 @@ extern "C" {
 **----------------------------------------------------------------------------
 */
 
-BOOL	TK_API	Tk15_DataDecompInit(BYTE* pData, LONG nSize);
-LONG	TK_API	Tk15_DataDecompress(BYTE* pBlock, LONG nBlockSize,
-										BYTE* pOutBlock);
-VOID	TK_API	Tk15_DataDecompShutdown();
+BOOL	TK_API	Tk10_DataDecompInit(BYTE* pData, LONG nSize);
+LONG	TK_API	Tk10_DataDecompress(BYTE* pBlock, LONG nBlockSize,
+									BYTE* pOutBlock);
+VOID	TK_API	Tk10_GetDecompInfo(LONG* pnDataOffset, LONG* pnBlockSize,
+								   LONG* pnOutSize);
+VOID	TK_API	Tk10_DataDecompShutdown();
 
 #ifdef __cplusplus
 }  /* extern "C" */
 #endif
 
-#endif //TK15_H
+#endif //TK10_H

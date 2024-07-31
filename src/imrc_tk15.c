@@ -26,9 +26,7 @@
 **----------------------------------------------------------------------------
 **  Definitions
 **----------------------------------------------------------------------------
-*/
-
-#define MAXLIMIT(value, limit)		if (value > limit) value = limit;					
+*/			
 
 /*
 **----------------------------------------------------------------------------
@@ -324,7 +322,7 @@ LONG	QuramDataDecompress(BYTE* pBlock, LONG nBlockSize, BYTE* pOutBlock)
 	nStartBlk = nBlkOffsetFromInData / QuramDataDecomp_BlkSize;
 	if (nStartBlk > QuramDataDecomp_Blocks - 1)
 		return -1;
-	if (QuramDataDecomp_DecompSize == QuramDataDecomp_BlkSize)
+	if (QuramDataDecomp_DecompSize <= QuramDataDecomp_BlkSize)
 	{
 		nBlks = 1;
 	}
@@ -348,12 +346,11 @@ LONG	QuramDataDecompress(BYTE* pBlock, LONG nBlockSize, BYTE* pOutBlock)
 	nActualUnpSize = QuramDataDecomp_DecompSize
 				   - (&pBlock[-nStartBlk] - QuramDataDecomp_Input);
 	nUnpSize = nBlks * QuramDataDecomp_BlkSize;
-	MAXLIMIT(nUnpSize, nActualUnpSize)
+	nUnpSize = MIN(nActualUnpSize, (nBlks * QuramDataDecomp_BlkSize));
 	IM_DataDecompress(pBlockData, nUnpSize, pDecoderOut,
 					  QuramDataDecomp_StdDistBits,QuramDataDecomp_ExtDistBits,
 					  QuramDataDecomp_BlkSize, nStartBlk);
-	nOutSize = nActualUnpSize - nStartBlk;
-	MAXLIMIT(nOutSize, nBlockSize)
+	nOutSize = MIN(nBlockSize, (nActualUnpSize - nStartBlk));
 	ImasterMemcpy(pOutBlock, &pDecoderOut[nStartBlk], nOutSize);
 	ImasterMemFree(pDecoderOut);
 	ImasterMemFree(pBlockData);
