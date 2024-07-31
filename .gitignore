@@ -361,7 +361,3 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-/test_tk10
-/win/tk10_imrc
-/ImrcUnpacker.zip
-/ImrcUnpacker.sln
