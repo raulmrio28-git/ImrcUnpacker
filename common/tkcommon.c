@@ -7,6 +7,7 @@
 ** History:
 ** when			who				what, where, why
 ** MM-DD-YYYY-- --------------- --------------------------------
+** 07/31/2024	raulmrio28-git	64-bit fix for QuramFlashRead
 ** 05/16/2024	raulmrio28-git	Initial version
 ** ===========================================================================
 */

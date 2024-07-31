@@ -6,6 +6,7 @@
 ** History:
 ** when			who				what, where, why
 ** MM-DD-YYYY-- --------------- --------------------------------
+** 07/31/2024	raulmrio28-git	MIN/MAX and MINE/MAXE
 ** 05/16/2024	raulmrio28-git	Initial version
 ** ===========================================================================
 */
