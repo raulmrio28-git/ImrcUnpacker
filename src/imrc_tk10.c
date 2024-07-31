@@ -29,7 +29,7 @@
 */
 
 #define DECOMP_BLK_SZ               ImasterDataDecomp_BlkWrds
-#define DECOMP_BLK_LIM(unp_blks)    unp_blks % DECOMP_BLK_SZ
+#define DECOMP_BLK_LIM(unpwds,blks) (unpwds - (DECOMP_BLK_SZ*blks))
 #define BLK_INFO					ImasterDataDecomp_BlockInfos
 #define BLK_OFFS					(pBlock - ImasterDataDecomp_Input)
 #define MBK_OFFS					(curr_mbk << 2) + curr_mbk_wrd
@@ -2851,9 +2851,8 @@ LOCAL	DWORD	IM_DataDeCompress(BYTE* pInBlock, DWORD nOutSize,
             }
             else
             {
-                WORD nBlkUnpWrds = 0;
-				while ((nDecWrds + nBlkUnpWrds) < nTotalWrds
-				   && (nBlkUnpWrds < ImasterDataDecomp_BlkWrds))
+				while (DECOMP_BLK_LIM(nDecWrds,nBlock) < DECOMP_BLK_SZ
+					&& nDecWrds < nTotalWrds)
                 {
                     BOOL mixed_comp;
                     EXTRACT_BIT(mixed_comp);
@@ -2934,9 +2933,8 @@ LOCAL	DWORD	IM_DataDeCompress(BYTE* pInBlock, DWORD nOutSize,
                             pCurrOut++;
                         }
                     }
-                    nBlkUnpWrds += 16;
+					nDecWrds += 16;
                 }
-                nDecWrds += ImasterDataDecomp_BlkWrds;
             }
 			nBlock++;
         }
