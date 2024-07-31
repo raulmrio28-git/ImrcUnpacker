@@ -28,6 +28,8 @@
 **----------------------------------------------------------------------------
 */			
 
+#define MBK_OFFS					((curr_mbk << 1) + curr_mbk_wrd)
+
 /*
 **----------------------------------------------------------------------------
 **  Type Definitions
@@ -126,8 +128,8 @@ LOCAL	DWORD	IM_DataDecompress(BYTE* pInBlock, DWORD nOutSize,
 		nTotalBlks--;
 		if (QuramDataDecomp_BlockInfos[nBlock].nCmdSize)
 		{
-			DWORD nCurrMacroBlk;
-			DWORD nCurrMacroWord;
+			DWORD curr_mbk;
+			DWORD curr_mbk_wrd;
 			nCurrBits = 0;
 			bCmdBytes = 0;
 			pCmdBuf = pInBlock;
@@ -140,9 +142,9 @@ LOCAL	DWORD	IM_DataDecompress(BYTE* pInBlock, DWORD nOutSize,
 				nTotalMblks = nBlkSize >> 2;
 			pInBlock += QuramDataDecomp_BlockInfos[nBlock].nCmdSize;
 			//starting quad-macro-block
-			for (nCurrMacroBlk = 0; nCurrMacroBlk < 4; nCurrMacroBlk++)
+			for (curr_mbk = 0; curr_mbk < 4; curr_mbk++)
 			{
-				if (nCurrMacroBlk)
+				if (curr_mbk)
 				{
 					BOOL sameoffs;
 					CHK_BITS(nFQMBBits);
@@ -154,7 +156,7 @@ LOCAL	DWORD	IM_DataDecompress(BYTE* pInBlock, DWORD nOutSize,
 						EXTRACT_BITS(nOffs, (extdoffs
 											 ? nDistExtBits : nDistStdBits));
 					}
-					for (nCurrMacroWord=0;nCurrMacroWord<2;nCurrMacroWord++)
+					for (curr_mbk_wrd=0;curr_mbk_wrd<2;curr_mbk_wrd++)
 					{
 						BOOL stdlz;
 						EXTRACT_BIT(stdlz);
@@ -164,7 +166,7 @@ LOCAL	DWORD	IM_DataDecompress(BYTE* pInBlock, DWORD nOutSize,
 						{
 							BOOL literal;
 							EXTRACT_BIT(literal);
-							*(WORD*)&pCurrOut = (literal 
+							*(WORD*)pCurrOut = (literal 
 											  ? *(WORD*)pInBlock
 											  :	diffTbl[*pInBlock]
 											  ^ *(WORD*)(pCurrOut-nOffs));
@@ -175,12 +177,9 @@ LOCAL	DWORD	IM_DataDecompress(BYTE* pInBlock, DWORD nOutSize,
 				}
 				else
 				{
-					for (nCurrMacroWord=0;nCurrMacroWord<2;nCurrMacroWord++)
-					{
-						AcMemcpyEx(pCurrOut, pInBlock, 2);
-						pCurrOut += sizeof(WORD);
-						pInBlock += sizeof(WORD);
-					}
+					AcMemcpyEx(pCurrOut, pInBlock, sizeof(WORD)*2);
+					pCurrOut += 2*sizeof(WORD);
+					pInBlock += 2*sizeof(WORD);
 				}
 				nUnpMblks++;
 			}
@@ -190,9 +189,9 @@ LOCAL	DWORD	IM_DataDecompress(BYTE* pInBlock, DWORD nOutSize,
 				EXTRACT_BIT(mixed);
 				if (mixed)
 				{
-					unsigned char stdlz_bits = *pInBlock;
+					BYTE stdlz_bits = *pInBlock;
 					pInBlock++;
-					for (nCurrMacroBlk=0;nCurrMacroBlk<4;nCurrMacroBlk++)
+					for (curr_mbk=0;curr_mbk<4;curr_mbk++)
 					{
 						BOOL sameoffs;
 						CHK_BITS(nRQMBBits);
@@ -204,12 +203,10 @@ LOCAL	DWORD	IM_DataDecompress(BYTE* pInBlock, DWORD nOutSize,
 							EXTRACT_BITS(nOffs, (extdoffs 
 										? nDistExtBits : nDistStdBits));
 						}
-						for(nCurrMacroWord=0;nCurrMacroWord<2;
-							nCurrMacroWord++)
+						for(curr_mbk_wrd=0;curr_mbk_wrd<2;
+							curr_mbk_wrd++)
 						{
-							if ((stdlz_bits & (1 << (7
-													- ((nCurrMacroBlk << 1)
-													+ nCurrMacroWord)))))
+							if ((stdlz_bits & (1 << (7 - MBK_OFFS))))
 							{
 								*(WORD*)pCurrOut=*(WORD*)(pCurrOut-nOffs);
 							}

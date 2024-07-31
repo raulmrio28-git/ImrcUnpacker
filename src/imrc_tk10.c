@@ -28,12 +28,12 @@
 **----------------------------------------------------------------------------
 */
 
-#define DECOMP_BLK_SZ               ImasterDataDecomp_BlkWrds
-#define DECOMP_BLK_LIM(unpwds,blks) (unpwds - (DECOMP_BLK_SZ*blks))
 #define BLK_INFO					ImasterDataDecomp_BlockInfos
 #define BLK_OFFS					(pBlock - ImasterDataDecomp_Input)
-#define MBK_OFFS					(curr_mbk << 2) + curr_mbk_wrd
-#define RBK_OFFS					(pBlkInfo[nBlock + 1].nCmdOffs - pBlkInfo[nBlock].nDataOffs) 
+#define DECOMP_BLK_SZ               ImasterDataDecomp_BlkWrds
+#define DECOMP_BLK_LIM(unpwds,blks) (unpwds - (DECOMP_BLK_SZ*blks))
+#define MBK_OFFS					((curr_mbk << 2) + curr_mbk_wrd)
+#define RBK_SIZE  (pBlkInfo[nBlock + 1].nCmdOffs - pBlkInfo[nBlock].nDataOffs) 
 /*
 **----------------------------------------------------------------------------
 **  Type Definitions
@@ -2844,10 +2844,10 @@ LOCAL	DWORD	IM_DataDeCompress(BYTE* pInBlock, DWORD nOutSize,
             pCmdBuf++;
             if (raw == TRUE)
             {
-                ImasterMemcpy(pCurrOut, pDataBuf, RBK_OFFS);
-                nDecWrds += (RBK_OFFS) >> 1;
+                ImasterMemcpy(pCurrOut, pDataBuf, RBK_SIZE);
+                nDecWrds += (RBK_SIZE) >> 1;
 				//what an epic fail in the OG, let's fix it :)
-				pCurrOut += (RBK_OFFS) >> 1;
+				pCurrOut += (RBK_SIZE) >> 1;
             }
             else
             {
@@ -2890,7 +2890,7 @@ LOCAL	DWORD	IM_DataDeCompress(BYTE* pInBlock, DWORD nOutSize,
                                 for (curr_mbk_wrd = 0; curr_mbk_wrd < 4;
 									curr_mbk_wrd++)
                                 {
-                                    if ((reg_lz_bits & (1<<(15 - (MBK_OFFS)))))
+                                    if ((reg_lz_bits & (1<<(15 - MBK_OFFS))))
                                     {
                                         *pCurrOut = *(pCurrOut-nOffs);
                                     }
