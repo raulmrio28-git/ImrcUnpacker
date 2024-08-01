@@ -382,6 +382,14 @@ LONG	Tk15_DataDecompress(BYTE* pBlock, LONG nBlockSize,
 	return QuramDataDecompress(pBlock, nBlockSize, pOutBlock);
 }
 
+VOID    Tk15_GetDecompInfo(LONG* pnBlockSize, LONG* pnOutSize)
+{
+	if (pnBlockSize)
+		*pnBlockSize = QuramDataDecomp_BlkSize;
+	if (pnOutSize)
+		*pnOutSize = QuramDataDecomp_DecompSize;
+}
+
 VOID	Tk15_DataDecompShutdown()
 {
 	QuramDataDecompShutdown();

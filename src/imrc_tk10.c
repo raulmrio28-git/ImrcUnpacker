@@ -30,10 +30,13 @@
 **----------------------------------------------------------------------------
 */
 
+//struct sizes
 #define HDR_SIZE					sizeof(tk10_IMRCBaseHdr)
 #define BKI_SIZE					sizeof(ImasterDataDecomp_BlockInfo)
+//ImasterDataDecompress
 #define BLK_INFO					ImasterDataDecomp_BlockInfos
 #define BLK_OFFS					(pBlock - ImasterDataDecomp_Input)
+//main decompressor
 #define DECOMP_BLK_SZ               ImasterDataDecomp_BlkWrds
 #define DECOMP_BLK_LIM(unpwds,blks) (unpwds - (DECOMP_BLK_SZ*blks))
 #define MBK_OFFS					((curr_mbk << 2) + curr_mbk_wrd)
@@ -2827,7 +2830,7 @@ LOCAL   WORD                        diffTbl[] = {
 **----------------------------------------------------------------------------
 */
 
-DWORD			IM_DataDeCompress(BYTE* pInBlock, DWORD nOutSize,
+LOCAL DWORD		IM_DataDeCompress(BYTE* pInBlock, DWORD nOutSize,
                                   WORD* pOutData,
                                   ImasterDataDecomp_BlockInfo* pBlkInfo)
 {
@@ -3120,11 +3123,8 @@ LONG	Tk10_DataDecompress(BYTE* pBlock, LONG nBlockSize,
 	return ImasterDataDecompress(pBlock, nBlockSize, pOutBlock);
 }
 
-VOID    Tk10_GetDecompInfo(LONG* pnDataOffset, LONG* pnBlockSize,
-                           LONG* pnOutSize)
+VOID    Tk10_GetDecompInfo(LONG* pnBlockSize, LONG* pnOutSize)
 {
-    if (pnDataOffset)
-        *pnDataOffset = ImasterDataDecomp_DataOffs;
 	if (pnBlockSize)
 		*pnBlockSize = ImasterDataDecomp_BlkSize;
 	if (pnOutSize)

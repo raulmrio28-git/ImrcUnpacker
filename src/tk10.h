@@ -79,8 +79,7 @@ extern "C" {
 BOOL	TK_API	Tk10_DataDecompInit(BYTE* pData, LONG nSize);
 LONG	TK_API	Tk10_DataDecompress(BYTE* pBlock, LONG nBlockSize,
 									BYTE* pOutBlock);
-VOID	TK_API	Tk10_GetDecompInfo(LONG* pnDataOffset, LONG* pnBlockSize,
-								   LONG* pnOutSize);
+VOID	TK_API	Tk10_GetDecompInfo(LONG* pnBlockSize, LONG* pnOutSize);
 VOID	TK_API	Tk10_DataDecompShutdown();
 
 #ifdef __cplusplus
