@@ -55,6 +55,9 @@ extern "C" {
 #define TK_API DLLIMPORT
 #endif
 
+#define REG_DIST_BITS				6
+#define EXT_DIST_BITS				11
+
 /*
 **----------------------------------------------------------------------------
 **  Type Definitions
