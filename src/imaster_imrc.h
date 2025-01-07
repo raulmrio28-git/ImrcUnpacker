@@ -1,18 +1,19 @@
 /*
 ** ===========================================================================
-** File: tk15.h
-** Description: TK1.5 functions externs.
+** File: imaster_imrc.h
+** Description: I-master IMRC function externs.
 ** Copyright (c) 2024 raulmrio28-git and contributors.
 ** Format Copyright (C) 2006 I-master/Quram Co. Ltd.
 ** History:
 ** when			who				what, where, why
 ** MM-DD-YYYY-- --------------- --------------------------------
+** 08/02/2024	raulmrio28-git	Reorganization
 ** 07/28/2024	raulmrio28-git	Initial version
 ** ===========================================================================
 */
 
-#ifndef TK15_H_
-#define TK15_H_
+#ifndef _IMASTER_IMRC_H_
+#define _IMASTER_IMRC_H_
 
 /*
 **----------------------------------------------------------------------------
@@ -34,6 +35,7 @@ extern "C" {
 **----------------------------------------------------------------------------
 */
 
+#if defined(COMPILE_FOR_DLL)
 #if defined(_MSC_VER)
 //  Microsoft 
 #define DLLEXPORT __declspec(dllexport)
@@ -48,18 +50,30 @@ extern "C" {
 #define DLLIMPORT
 #pragma warning Unknown dynamic link import/export semantics.
 #endif
+#else
+#define DLLEXPORT
+#define DLLIMPORT
+#endif
 
 #ifdef TK_EXPORTS
-#define TK_API DLLEXPORT
+#define IMRCAPI DLLEXPORT
 #else
-#define TK_API DLLIMPORT
+#define IMRCAPI DLLIMPORT
 #endif
+
+#define REG_DIST_BITS				6
+#define EXT_DIST_BITS				11
 
 /*
 **----------------------------------------------------------------------------
 **  Type Definitions
 **----------------------------------------------------------------------------
 */
+
+typedef struct {
+	DWORD			nDecompSize;
+	DWORD			nBlockSize;
+} ImasterDataDecomp_HdrInfo;
 
 /*
 **----------------------------------------------------------------------------
@@ -73,14 +87,19 @@ extern "C" {
 **----------------------------------------------------------------------------
 */
 
-BOOL	TK_API	Tk15_DataDecompInit(BYTE* pData, LONG nSize);
-LONG	TK_API	Tk15_DataDecompress(BYTE* pBlock, LONG nBlockSize,
-										BYTE* pOutBlock);
-VOID	TK_API	Tk15_GetDecompInfo(LONG* pnBlockSize, LONG* pnOutSize);
-VOID	TK_API	Tk15_DataDecompShutdown();
+LONG	IMRCAPI	ImasterDataDecompInit(BYTE* pData);
+LONG	IMRCAPI	ImasterDataDecompress(BYTE* pBlock, LONG nOutSize,
+									  WORD* pOutBlock);
+
+LONG	IMRCAPI	ImasterDataDecomp_GetHeaderInfo
+				(ImasterDataDecomp_HdrInfo* pInfo);
+LONG	IMRCAPI	ImasterDataDecomp_Buf(BYTE* pIn, WORD* pOut);
+LONG	IMRCAPI	ImasterDataDecomp_Buf_GetHeaderInfo
+				(BYTE* pData, ImasterDataDecomp_HdrInfo* pInfo);
+VOID	IMRCAPI	ImasterDataDecompShutdown();
 
 #ifdef __cplusplus
 }  /* extern "C" */
 #endif
 
-#endif //TK15_H
+#endif //_IMASTER_IMRC_H_

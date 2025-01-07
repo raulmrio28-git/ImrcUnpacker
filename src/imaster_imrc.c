@@ -1,12 +1,13 @@
 /*
 ** ===========================================================================
-** File: imrc_tk10.c
-** Description: Code for TkTool1.5+ IMRC file handling.
+** File: imaster_imrc.c
+** Description: Code for I-master IMRC handling.
 ** Copyright (c) 2024 raulmrio28-git and contributors.
 ** Format Copyright (C) 2006 I-master/Quram Co. Ltd.
 ** History:
 ** when			who				what, where, why
 ** MM-DD-YYYY-- --------------- --------------------------------
+** 08/02/2024	raulmrio28-git	Reorganization
 ** 08/01/2024	raulmrio28-git	Add support for non-distance bits in header
 **								IMRC
 ** 08/01/2024	raulmrio28-git	Initial version
@@ -19,10 +20,10 @@
 **----------------------------------------------------------------------------
 */
 
-#include "../common/tkcommon.h"
+#include "../common/imrc_common.h"
 #include "../common/imrc_int.h"
 #include "../common/bit_handle.h"
-#include "tk10.h"
+#include "imaster_imrc.h"
 #include <stdbool.h>
 /*
 **----------------------------------------------------------------------------
@@ -31,8 +32,7 @@
 */
 
 //struct sizes
-#define HDR_SIZE					sizeof(tk10_IMRCBaseHdr)
-#define BKI_SIZE					sizeof(ImasterDataDecomp_BlockInfo)
+#define	HDR_OFFS					2*sizeof(DWORD)
 //ImasterDataDecompress
 #define BLK_INFO					ImasterDataDecomp_BlockInfos
 #define BLK_OFFS					(pBlock - ImasterDataDecomp_Input)
@@ -47,11 +47,6 @@
 **  Type Definitions
 **----------------------------------------------------------------------------
 */
-
-typedef struct {
-	LONG			Magic;
-    DWORD			nBlkSize;
-} tk10_IMRCBaseHdr;
 
 typedef struct {
 	DWORD			nTotalDecSize;
@@ -71,17 +66,17 @@ typedef struct {
 **----------------------------------------------------------------------------
 */
 
-LOCAL	ImasterDataDecomp_BlockInfo* ImasterDataDecomp_BlockInfos;
-LOCAL	BYTE*						ImasterDataDecomp_Input;
-LOCAL	DWORD						ImasterDataDecomp_BlkSize = 0;
-LOCAL	DWORD						ImasterDataDecomp_BlkWrds = 0;
-LOCAL	DWORD						ImasterDataDecomp_StdDistBits = 0;
-LOCAL	DWORD						ImasterDataDecomp_ExtDistBits = 0;
+LOCAL	BYTE*						ImasterDataDecomp_Input = NULL;
 LOCAL	DWORD						ImasterDataDecomp_DecompSize = 0;
-LOCAL   DWORD						ImasterDataDecomp_DecompWrds = 0;
 LOCAL	DWORD						ImasterDataDecomp_Blocks = 0;
+LOCAL	DWORD						ImasterDataDecomp_BlkSize = 0;
+LOCAL	ImasterDataDecomp_BlockInfo* ImasterDataDecomp_BlockInfos;
+LOCAL   DWORD						ImasterDataDecomp_DecompWrds = 0;
 LOCAL	DWORD						ImasterDataDecomp_DataOffs = 0;
+LOCAL	DWORD						ImasterDataDecomp_BlkWrds = 0;
 LOCAL	BYTE*						ImasterDataDecomp_TmpBlock = NULL;
+LOCAL	DWORD						ImasterDataDecomp_ExtDistBits = 0;
+LOCAL	DWORD						ImasterDataDecomp_StdDistBits = 0;
 LOCAL	BOOL						ImasterDataDecomp_OldVersion = FALSE;
 
 LOCAL   WORD                        diffTblIdxInc[] =
@@ -2823,31 +2818,28 @@ LOCAL   WORD                        diffTbl[] = {
 	0xffec, 0xffed, 0xfff5, 0xfff6, 0xfff7
 };
 
-
 /*
 **----------------------------------------------------------------------------
 **  Function(internal use only) Declarations
 **----------------------------------------------------------------------------
 */
-
-LOCAL DWORD		IM_DataDeCompress(BYTE* pInBlock, DWORD nOutSize,
-                                  WORD* pOutData,
-                                  ImasterDataDecomp_BlockInfo* pBlkInfo)
+LOCAL	DWORD	IM_DataDeCompress(BYTE* pInBlock, DWORD nOutSize,
+								  WORD* pOutData,
+								  ImasterDataDecomp_BlockInfo* pBlkInfo)
 {
-    BYTE* pCmdBuf;
-    WORD* pDataBuf;
-    DWORD nDecWrds;
-    WORD* pCurrOut;
-	DWORD nOffs;
-	DWORD nCurrBits;
-	DWORD bCmdBytes;
-	DWORD nBlock;
-	DWORD nTotalWrds;
+    BYTE*		pCmdBuf;
+    WORD*		pDataBuf;
+    WORD*		pCurrOut;
+	DWORD		nCurrBits;
+	DWORD		bCmdBytes;
+	DWORD		nBlock;
+	DWORD		nOffs;
+	DWORD		nDecWrds, nTotalWrds;
     nBlock = 0;
     nDecWrds = 0;
     nTotalWrds = (nOutSize >> 1) - 15;
     pCurrOut = pOutData;
-	pDataBuf = &pInBlock[pBlkInfo->nDataOffs];
+	pDataBuf = (WORD*)&pInBlock[pBlkInfo->nDataOffs];
     if (nTotalWrds)
     {
         while (nDecWrds < nTotalWrds)
@@ -2857,7 +2849,7 @@ LOCAL DWORD		IM_DataDeCompress(BYTE* pInBlock, DWORD nOutSize,
 			nCurrBits = 0;
 			bCmdBytes = 0;
 			pCmdBuf = &pInBlock[pBlkInfo[nBlock].nCmdOffs];
-			pDataBuf = &pInBlock[pBlkInfo[nBlock].nDataOffs];
+			pDataBuf = (WORD*)&pInBlock[pBlkInfo[nBlock].nDataOffs];
 			if (ImasterDataDecomp_OldVersion == FALSE)
 			{
 				raw = *pCmdBuf;
@@ -2929,7 +2921,7 @@ LOCAL DWORD		IM_DataDeCompress(BYTE* pInBlock, DWORD nOutSize,
                                             DWORD xor_idx = 0;
                                             EXTRACT_BITS(xor_idx,
 												((idx_bits + 1) << 1));
-                                            xor_idx += diffTblIdxInc[idx_bits];
+                                            xor_idx+=diffTblIdxInc[idx_bits];
 											*pCurrOut = diffTbl[xor_idx]
 													  ^ *(pCurrOut - nOffs);
                                         }
@@ -2940,7 +2932,7 @@ LOCAL DWORD		IM_DataDeCompress(BYTE* pInBlock, DWORD nOutSize,
                         }
                         else
                         {
-                            ImasterMemcpy(pCurrOut, pDataBuf, 16*sizeof(WORD));
+                            ImasterMemcpy(pCurrOut,pDataBuf,16*sizeof(WORD));
 							pCurrOut += 16;
                             pDataBuf += 16;
                         }
@@ -2965,20 +2957,83 @@ LOCAL DWORD		IM_DataDeCompress(BYTE* pInBlock, DWORD nOutSize,
     return nOutSize;
 }
 
+/*
+**----------------------------------------------------------------------------
+**  Function(external use only) Declarations
+**----------------------------------------------------------------------------
+*/
 
-LONG			 ImasterDataDecompress(BYTE* pBlock, LONG nBlkSize, WORD* pOut)
+LONG			ImasterDataDecompInit(BYTE* pData)
 {
-	LONG nBlkOffs;
-    WORD* pTmpBuffer;
-	LONG nStartBlock;
-	LONG nEndBlock;
-	LONG bCmdBytes;
-    DWORD* pBlkInfo;
-	LONG nBlkStartOffs;
-	LONG nCalcBlkReadSize;
-	LONG nDecompSize;
-	LONG nActDecompSize;
-	LONG nCalcDecompSize;
+	DWORD		dwMagic;
+	ImasterDataDecomp_Input = pData;
+	ImasterFlashRead(&dwMagic, pData, sizeof(DWORD));
+	if (dwMagic == IMRC_MAGIC)
+	{
+		DWORD	nBlkSize;
+		LONG	nBkiOffs;
+		nBkiOffs = HDR_OFFS;
+		ImasterFlashRead(&nBlkSize, pData+sizeof(DWORD), sizeof(DWORD));
+		//First block start offset is 0 usually
+		if (!*(DWORD*)&pData[HDR_OFFS+2*sizeof(DWORD)])
+			ImasterDataDecomp_OldVersion = TRUE;
+		if (ImasterDataDecomp_OldVersion == TRUE)
+		{
+			tk10_IMRCOldInfoHdr* pinfoHdr = (tk10_IMRCOldInfoHdr*)
+											&pData[HDR_OFFS];
+			//1KB block
+			ImasterDataDecomp_BlkSize = nBlkSize << 10;
+			ImasterDataDecomp_StdDistBits = REG_DIST_BITS;
+			ImasterDataDecomp_ExtDistBits = EXT_DIST_BITS;
+			ImasterDataDecomp_DecompSize = pinfoHdr->nTotalDecSize;
+			ImasterDataDecomp_Blocks = pinfoHdr->nBlocks;
+			nBkiOffs += sizeof(tk10_IMRCOldInfoHdr);
+		}
+		else
+		{
+			tk10_IMRCNewInfoHdr* pinfoHdr = (tk10_IMRCNewInfoHdr*)
+											&pData[HDR_OFFS];
+			ImasterDataDecomp_BlkSize = nBlkSize;
+			ImasterDataDecomp_StdDistBits = pinfoHdr->nDistStdBits;
+			ImasterDataDecomp_ExtDistBits = pinfoHdr->nDistExtBits;
+			ImasterDataDecomp_DecompSize = pinfoHdr->nTotalDecSize;
+			ImasterDataDecomp_Blocks = pinfoHdr->nBlocks;
+			nBkiOffs += sizeof(tk10_IMRCNewInfoHdr);
+		}
+		ImasterDataDecomp_DataOffs = nBkiOffs+sizeof(DWORD)
+								   + (BKI_SIZE*ImasterDataDecomp_Blocks);
+		FREE(ImasterDataDecomp_BlockInfos);
+		ALLOC_CHECK(ImasterDataDecomp_BlockInfos,
+					sizeof(ImasterDataDecomp_BlockInfo)
+				    *ImasterDataDecomp_Blocks,ImasterDataDecomp_BlockInfo*,
+					IMASTER_FAIL)
+		ImasterDataDecomp_BlkWrds = ImasterDataDecomp_BlkSize >> 1;
+		ImasterMemcpy(ImasterDataDecomp_BlockInfos,
+					  pData+nBkiOffs,sizeof(ImasterDataDecomp_BlockInfo)
+					  * ImasterDataDecomp_Blocks);
+		ImasterFlashRead(&ImasterDataDecomp_DecompWrds,
+						pData+nBkiOffs+(sizeof(ImasterDataDecomp_BlockInfo)
+						* ImasterDataDecomp_Blocks), sizeof(DWORD));
+		ALLOC_CHECK(ImasterDataDecomp_TmpBlock,
+					MAXE(ImasterDataDecomp_DecompSize,
+					ImasterDataDecomp_BlkSize)+sizeof(DWORD),
+					BYTE*,IMASTER_FAIL)
+		return IMASTER_SUCCESS;
+	}
+	return IMASTER_FAIL;
+}
+
+LONG			ImasterDataDecompress(BYTE* pBlock, LONG nOutSize, WORD* pOut)
+{
+	LONG		nBlkOffs;
+    WORD*		pTmpBuffer;
+	LONG		nStartBlock;
+	LONG		nEndBlock;
+    DWORD*		pBlkInfo;
+	LONG		nBlkStartOffs;
+	LONG		nCalcBlkReadSize;
+	LONG		nDecompSize;
+	LONG		nCalcDecompSize;
 
     nBlkOffs = 0;
     pTmpBuffer = 0;
@@ -2986,9 +3041,9 @@ LONG			 ImasterDataDecompress(BYTE* pBlock, LONG nBlkSize, WORD* pOut)
     nEndBlock = ImasterDataDecomp_Blocks - 1;
     if (nStartBlock >= nEndBlock)
         return -1;
-    if (nBlkSize != ImasterDataDecomp_DecompSize)
+    if (nOutSize != ImasterDataDecomp_DecompSize)
     {
-        nEndBlock = nBlkSize/ImasterDataDecomp_BlkSize;
+        nEndBlock = nOutSize/ImasterDataDecomp_BlkSize;
         if (nEndBlock >= 1)
         {
             nEndBlock  = MIN((nEndBlock - nStartBlock), nEndBlock);
@@ -3024,14 +3079,14 @@ LONG			 ImasterDataDecompress(BYTE* pBlock, LONG nBlkSize, WORD* pOut)
 										pTmpBuffer, pBlkInfo);
         if (nDecompSize)
         {
-			ImasterMemcpy(pOut, &pTmpBuffer[nBlkOffs], MINE(nBlkSize,
+			ImasterMemcpy(pOut, &pTmpBuffer[nBlkOffs], MINE(nOutSize,
 						 (ImasterDataDecomp_DecompSize - BLK_OFFS)));
         }
     }
     else
     {
         nDecompSize = IM_DataDeCompress(ImasterDataDecomp_TmpBlock,
-										MIN(nCalcDecompSize, nBlkSize),
+										MIN(nCalcDecompSize, nOutSize),
 										pOut, pBlkInfo);
     }
     ImasterMemFree(pBlkInfo);
@@ -3040,98 +3095,64 @@ LONG			 ImasterDataDecompress(BYTE* pBlock, LONG nBlkSize, WORD* pOut)
     return nDecompSize;
 }
 
-LONG			_ImasterDataDecompInit(BYTE* pData, LONG sz)
+LONG			ImasterDataDecomp_GetHeaderInfo
+				(ImasterDataDecomp_HdrInfo* pInfo)
 {
-	int					i;
-	tk10_IMRCBaseHdr*	pstBaseHeader;
-	LONG				nHdrTotalSz = 0;
-	bool				bResult = FALSE;
-	ImasterDataDecomp_Input = pData;
-	pstBaseHeader = (tk10_IMRCBaseHdr*)pData;
-	if (pstBaseHeader->Magic == IMRC_MAGIC)
+	if (!ImasterDataDecomp_BlockInfos)
+		return IMASTER_FAIL;
+	pInfo->nDecompSize = ImasterDataDecomp_DecompSize;
+	pInfo->nBlockSize = ImasterDataDecomp_BlkSize;
+	return IMASTER_SUCCESS;
+}
+
+LONG			ImasterDataDecomp_Buf(BYTE* pIn, WORD* pOut)
+{
+	LONG		nOutSize;
+
+	ImasterDataDecompInit(pIn);
+	nOutSize = ImasterDataDecompress(ImasterDataDecomp_Input,
+									 ImasterDataDecomp_DecompSize,
+									 pOut);
+	ImasterDataDecompShutdown();
+	return nOutSize;
+}
+
+LONG			ImasterDataDecomp_Buf_GetHeaderInfo
+				(BYTE* pData, ImasterDataDecomp_HdrInfo* pInfo)
+{
+	DWORD		dwMagic;
+	ImasterFlashRead(&dwMagic, pData, sizeof(DWORD));
+	if (dwMagic == IMRC_MAGIC)
 	{
-		bResult = TRUE;
-		nHdrTotalSz = HDR_SIZE;
+		DWORD	nBlockSize;
+		DWORD	nDecompSize;
+		ImasterFlashRead(&nBlockSize, pData + sizeof(DWORD), sizeof(DWORD));
 		//First block start offset is 0 usually
-		if (!*(DWORD*)&pData[HDR_SIZE+2*sizeof(DWORD)])
+		if (!*(DWORD*)&pData[HDR_OFFS + 2 * sizeof(DWORD)])
 			ImasterDataDecomp_OldVersion = TRUE;
 		if (ImasterDataDecomp_OldVersion == TRUE)
 		{
 			tk10_IMRCOldInfoHdr* pinfoHdr = (tk10_IMRCOldInfoHdr*)
-											&pData[HDR_SIZE];
+											&pData[HDR_OFFS];
 			//1KB block
-			ImasterDataDecomp_BlkSize = pstBaseHeader->nBlkSize << 10;
-			ImasterDataDecomp_StdDistBits = REG_DIST_BITS;
-			ImasterDataDecomp_ExtDistBits = EXT_DIST_BITS;
-			ImasterDataDecomp_DecompSize = pinfoHdr->nTotalDecSize;
-			ImasterDataDecomp_Blocks = pinfoHdr->nBlocks;
-			nHdrTotalSz += sizeof(tk10_IMRCOldInfoHdr);
+			nBlockSize <<= 10;
+			nDecompSize = pinfoHdr->nTotalDecSize;
 		}
 		else
 		{
 			tk10_IMRCNewInfoHdr* pinfoHdr = (tk10_IMRCNewInfoHdr*)
-											&pData[HDR_SIZE];
-			ImasterDataDecomp_BlkSize = pstBaseHeader->nBlkSize;
-			ImasterDataDecomp_StdDistBits = pinfoHdr->nDistStdBits;
-			ImasterDataDecomp_ExtDistBits = pinfoHdr->nDistExtBits;
-			ImasterDataDecomp_DecompSize = pinfoHdr->nTotalDecSize;
-			ImasterDataDecomp_Blocks = pinfoHdr->nBlocks;
-			nHdrTotalSz += sizeof(tk10_IMRCNewInfoHdr);
+											&pData[HDR_OFFS];
+			nDecompSize = pinfoHdr->nTotalDecSize;
 		}
-		ImasterDataDecomp_DataOffs = nHdrTotalSz + sizeof(DWORD)
-								   + (BKI_SIZE
-								   * ImasterDataDecomp_Blocks);
-		FREE(ImasterDataDecomp_BlockInfos);
-		ALLOC_CHECK(ImasterDataDecomp_BlockInfos,
-					sizeof(ImasterDataDecomp_BlockInfo)
-				  *ImasterDataDecomp_Blocks,ImasterDataDecomp_BlockInfo*,FALSE)
-		ImasterDataDecomp_BlkWrds = ImasterDataDecomp_BlkSize >> 1;
-		ImasterMemcpy(ImasterDataDecomp_BlockInfos,
-					  pData + nHdrTotalSz,sizeof(ImasterDataDecomp_BlockInfo)
-					  * ImasterDataDecomp_Blocks);
-		ImasterFlashRead(&ImasterDataDecomp_DecompWrds,
-						pData+nHdrTotalSz+(sizeof(ImasterDataDecomp_BlockInfo)
-						* ImasterDataDecomp_Blocks), sizeof(DWORD));
-		ImasterDataDecomp_TmpBlock = ImasterMemAlloc
-									(MAXE(ImasterDataDecomp_DecompSize,
-									 ImasterDataDecomp_BlkSize)+sizeof(DWORD));
+		pInfo->nBlockSize = nBlockSize;
+		pInfo->nDecompSize = nDecompSize;
+		return IMASTER_SUCCESS;
 	}
-	return bResult;
+	return IMASTER_FAIL;
 }
 
-BOOL	ImasterDataDecompShutdown()
+VOID			ImasterDataDecompShutdown()
 {
 	FREE(ImasterDataDecomp_BlockInfos);
 	FREE(ImasterDataDecomp_TmpBlock);
-	return TRUE;
-}
-
-/*
-**----------------------------------------------------------------------------
-**  Function(external use only) Declarations
-**----------------------------------------------------------------------------
-*/
-
-BOOL	Tk10_DataDecompInit(BYTE* pData, LONG nBlkSize)
-{
-	return _ImasterDataDecompInit(pData, nBlkSize);
-}
-
-LONG	Tk10_DataDecompress(BYTE* pBlock, LONG nBlockSize,
-	BYTE* pOutBlock)
-{
-	return ImasterDataDecompress(pBlock, nBlockSize, pOutBlock);
-}
-
-VOID    Tk10_GetDecompInfo(LONG* pnBlockSize, LONG* pnOutSize)
-{
-	if (pnBlockSize)
-		*pnBlockSize = ImasterDataDecomp_BlkSize;
-	if (pnOutSize)
-		*pnOutSize = ImasterDataDecomp_DecompSize;
-}
-
-VOID	Tk10_DataDecompShutdown()
-{
-	ImasterDataDecompShutdown();
 }

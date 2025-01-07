@@ -15,16 +15,16 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\imrc_tk10.c">
+    <ClCompile Include="..\..\common\imrc_common.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\common\tkcommon.c">
+    <ClCompile Include="..\..\src\imaster_imrc.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\tk10.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="..\..\src\imaster_imrc.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

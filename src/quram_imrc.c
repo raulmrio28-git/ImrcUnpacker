@@ -1,12 +1,14 @@
 /*
 ** ===========================================================================
-** File: imrc_tk15.c
-** Description: Code for TkTool1.5+ IMRC file handling.
+** File: quram_imrc.c
+** Description: Code for Quram IMRC handling.
 ** Copyright (c) 2024 raulmrio28-git and contributors.
-** Format Copyright (C) 2006 I-master/Quram Co. Ltd.
+** Format Copyright (C) 2008 Quram Co. Ltd.
 ** History:
 ** when			who				what, where, why
 ** MM-DD-YYYY-- --------------- --------------------------------
+** 08/02/2024	raulmrio28-git	Reorganization. Add support for non-vesrsioned
+**								IMRC
 ** 05/15/2024	raulmrio28-git	Initial version
 ** ===========================================================================
 */
@@ -17,10 +19,10 @@
 **----------------------------------------------------------------------------
 */
 
-#include "../common/tkcommon.h"
+#include "../common/imrc_common.h"
 #include "../common/imrc_int.h"
 #include "../common/bit_handle.h"
-#include "tk15.h"
+#include "quram_imrc.h"
 #include <stdbool.h>
 /*
 **----------------------------------------------------------------------------
@@ -28,6 +30,7 @@
 **----------------------------------------------------------------------------
 */			
 
+//main decompressor
 #define MBK_OFFS					((curr_mbk << 1) + curr_mbk_wrd)
 
 /*
@@ -37,13 +40,10 @@
 */
 
 typedef struct {
-	LONG			Magic;
-	WORD			nMinVer;
-	WORD			nMajVer;
 	DWORD			nBlkSize;
-	DWORD			nDistStdBits;
 	DWORD			nDistExtBits;
-	DWORD			nTotalDecSize;
+	DWORD			nDistStdBits;
+	DWORD			nDecompSize;
 	DWORD			nBlocks;
 } tk15_IMRCHeader;
 
@@ -54,13 +54,14 @@ typedef struct {
 */
 
 LOCAL	QuramDataDecomp_BlockInfo*	QuramDataDecomp_BlockInfos;
-LOCAL	BYTE*						QuramDataDecomp_Input;
-LOCAL	DWORD						QuramDataDecomp_BlkSize = 0;
-LOCAL	DWORD						QuramDataDecomp_StdDistBits = 0;
-LOCAL	DWORD						QuramDataDecomp_ExtDistBits = 0;
+LOCAL	DWORD*						QuramDataDecomp_BlockOffsets;
+LOCAL	BYTE*						QuramDataDecomp_Input = NULL;
 LOCAL	DWORD						QuramDataDecomp_DecompSize = 0;
 LOCAL	DWORD						QuramDataDecomp_Blocks = 0;
-LOCAL	DWORD*						QuramDataDecomp_BlockOffsets;
+LOCAL	DWORD						QuramDataDecomp_BlkSize = 0;
+LOCAL	DWORD						QuramDataDecomp_DataOffs = 0;
+LOCAL	DWORD						QuramDataDecomp_StdDistBits = 0;
+LOCAL	DWORD						QuramDataDecomp_ExtDistBits = 0;
 
 LOCAL	WORD						diffTbl[] =
 {
@@ -105,22 +106,22 @@ LOCAL	WORD						diffTbl[] =
 */
 
 LOCAL	DWORD	IM_DataDecompress(BYTE* pInBlock, DWORD nOutSize, 
-								  BYTE* pOutData, DWORD nDistStdBits,
-								  DWORD nDistExtBits, DWORD nBlkSize,
+								  BYTE* pOutData, DWORD nExtDistBits,
+								  DWORD nStdDistBits, DWORD nBlkSize,
 								  DWORD nBlock)
 {
-	BYTE* pCmdBuf;
-	BYTE* pCurrOut;
-	DWORD nCurrBits;
-	DWORD bCmdBytes;
-	DWORD nOffs;
-	DWORD nTotalBlks;
-	DWORD nUnpMblks, nTotalMblks;
-	DWORD nFQMBBits, nRQMBBits;
+	BYTE*		pCmdBuf;
+	BYTE*		pCurrOut;
+	DWORD		nCurrBits;
+	DWORD		bCmdBytes;
+	DWORD		nOffs;
+	DWORD		nTotalBlks;
+	DWORD		nUnpMblks, nTotalMblks;
+	DWORD		nFQMBBits, nRQMBBits;
 	pCurrOut = pOutData;
 	nTotalBlks = nOutSize / nBlkSize + ((nOutSize % nBlkSize)!=0);
-	nRQMBBits = nDistStdBits + 4;
-	nFQMBBits = nDistStdBits + 6;
+	nRQMBBits = nExtDistBits + 4;
+	nFQMBBits = nExtDistBits + 6;
 	nUnpMblks = 0;
 	nTotalMblks = 0;
 	while (nTotalBlks)
@@ -151,10 +152,10 @@ LOCAL	DWORD	IM_DataDecompress(BYTE* pInBlock, DWORD nOutSize,
 					EXTRACT_BIT(sameoffs);
 					if (!sameoffs)
 					{
-						BOOL extdoffs;
-						EXTRACT_BIT(extdoffs);
-						EXTRACT_BITS(nOffs, (extdoffs
-											 ? nDistExtBits : nDistStdBits));
+						BOOL stdoffs;
+						EXTRACT_BIT(stdoffs);
+						EXTRACT_BITS(nOffs, (stdoffs
+											 ? nStdDistBits : nExtDistBits));
 					}
 					for (curr_mbk_wrd=0;curr_mbk_wrd<2;curr_mbk_wrd++)
 					{
@@ -201,7 +202,7 @@ LOCAL	DWORD	IM_DataDecompress(BYTE* pInBlock, DWORD nOutSize,
 							BOOL extdoffs;
 							EXTRACT_BIT(extdoffs);
 							EXTRACT_BITS(nOffs, (extdoffs 
-										? nDistExtBits : nDistStdBits));
+										? nStdDistBits : nExtDistBits));
 						}
 						for(curr_mbk_wrd=0;curr_mbk_wrd<2;
 							curr_mbk_wrd++)
@@ -262,53 +263,73 @@ LOCAL	DWORD	IM_DataDecompress(BYTE* pInBlock, DWORD nOutSize,
 	return nOutSize + ((nUnpMblks - nTotalMblks) << 2);
 }
 
-BOOL	QuramDataDecompInit(BYTE* pData, LONG sz)
+/*
+**----------------------------------------------------------------------------
+**  Function(external use only) Declarations
+**----------------------------------------------------------------------------
+*/
+
+LONG			QuramDataDecompInit(BYTE* pData, LONG sz)
 {
-	int					i;
-	tk15_IMRCHeader*	pstHeader;
-	bool				bResult = FALSE;
+	DWORD		dwMagic;
 	QuramDataDecomp_Input = pData;
-	pstHeader = (tk15_IMRCHeader*)pData;
-	if (pstHeader->Magic == IMRC_MAGIC
-		&& (VERSION_TO_DOUBLE(BSWAP_WORD(pstHeader->nMajVer),
-			BSWAP_WORD(pstHeader->nMinVer)) == 2.4
-			|| VERSION_TO_DOUBLE(BSWAP_WORD(pstHeader->nMajVer),
-			BSWAP_WORD(pstHeader->nMinVer)) == 2.5
-			|| VERSION_TO_DOUBLE_WRD(pstHeader->nMinVer) >= 3.1))
+	ImasterMemcpy(&dwMagic, pData, sizeof(DWORD));
+	if (dwMagic == IMRC_MAGIC)
 	{
-		bResult = TRUE;
+		DWORD dwVersion;
+		DWORD nBkiOffs;
+		int	i;
+		tk15_IMRCHeader* pstHeader;
+		pstHeader = NULL;
+		nBkiOffs = 0;
+		//Check if input contains a version and not block size
+		ImasterMemcpy(&dwVersion, pData+sizeof(DWORD), sizeof(DWORD));
+		if (B4(dwVersion)) //possible version
+		{
+			DOUBLE dVersion = VER2DOUBLE(dwVersion);
+			if (dwVersion >= 2.0) //2.0 and up...
+			{
+				nBkiOffs = 2*sizeof(DWORD)+sizeof(tk15_IMRCHeader);
+				pstHeader = (tk15_IMRCHeader*)&pData[2*sizeof(DWORD)];
+			}
+			else
+			{
+				nBkiOffs = sizeof(DWORD)+sizeof(tk15_IMRCHeader);
+				pstHeader = (tk15_IMRCHeader*)&pData[sizeof(DWORD)];
+			}
+		}
 		QuramDataDecomp_BlkSize = pstHeader->nBlkSize;
-		QuramDataDecomp_StdDistBits = pstHeader->nDistStdBits;
 		QuramDataDecomp_ExtDistBits = pstHeader->nDistExtBits;
-		QuramDataDecomp_DecompSize = pstHeader->nTotalDecSize;
+		QuramDataDecomp_StdDistBits = pstHeader->nDistStdBits;
+		QuramDataDecomp_DecompSize = pstHeader->nDecompSize;
 		QuramDataDecomp_Blocks = pstHeader->nBlocks;
 		FREE(QuramDataDecomp_BlockInfos);
 		ALLOC_CHECK(QuramDataDecomp_BlockInfos,
-					sizeof(QuramDataDecomp_BlockInfo)
-				  * QuramDataDecomp_Blocks, QuramDataDecomp_BlockInfo*,
-					FALSE)
-		FREE(QuramDataDecomp_BlockOffsets);
+			sizeof(QuramDataDecomp_BlockInfo)
+			* QuramDataDecomp_Blocks, QuramDataDecomp_BlockInfo*,
+			QURAM_FAIL)
+			FREE(QuramDataDecomp_BlockOffsets);
 		ALLOC_CHECK(QuramDataDecomp_BlockOffsets,
-					sizeof(DWORD) * (QuramDataDecomp_Blocks + 1), DWORD*,
-					FALSE)
+					sizeof(DWORD) * (QuramDataDecomp_Blocks + 1),
+					DWORD*, QURAM_FAIL)
 		QuramMemcpy(QuramDataDecomp_BlockInfos,
-						pData + sizeof(tk15_IMRCHeader),
-						sizeof(QuramDataDecomp_BlockInfo)
-					  * QuramDataDecomp_Blocks);
-		*QuramDataDecomp_BlockOffsets = sizeof(QuramDataDecomp_BlockInfo)
-									  * QuramDataDecomp_Blocks
-									  + sizeof(tk15_IMRCHeader);
+					pData + nBkiOffs,
+					sizeof(QuramDataDecomp_BlockInfo)
+					* QuramDataDecomp_Blocks);
+		QuramDataDecomp_DataOffs = nBkiOffs+(BKI_SIZE*QuramDataDecomp_Blocks);
+		*QuramDataDecomp_BlockOffsets = QuramDataDecomp_DataOffs;
 		for (i = 1; i <= QuramDataDecomp_Blocks; ++i)
-			QuramDataDecomp_BlockOffsets[i]=QuramDataDecomp_BlockOffsets[i-1]
-			+ QuramDataDecomp_BlockInfos[i - 1].nCmdSize
-			+ QuramDataDecomp_BlockInfos[i - 1].nDataSize;
+			QuramDataDecomp_BlockOffsets[i] = QuramDataDecomp_BlockOffsets[i-1]
+			+ QuramDataDecomp_BlockInfos[i-1].nCmdSize
+			+ QuramDataDecomp_BlockInfos[i-1].nDataSize;
+		return QURAM_SUCCESS;
 	}
-	return bResult;
+	return QURAM_FAIL;
 }
 
-LONG	QuramDataDecompress(BYTE* pBlock, LONG nBlockSize, BYTE* pOutBlock)
+LONG			QuramDataDecompress(BYTE* pBlock, LONG nBlockSize,
+									WORD* pOutBlock)
 {
-	int		i;
 	DWORD	nBlkOffsetFromInData;
 	LONG	nStartBlk;
 	LONG	nBlks;
@@ -329,6 +350,7 @@ LONG	QuramDataDecompress(BYTE* pBlock, LONG nBlockSize, BYTE* pOutBlock)
 	}
 	else
 	{
+		int	i;
 		nBlockSize = MIN(nBlockSize, QuramDataDecomp_DecompSize);
 		nBlks = (nBlockSize + nStartBlk + QuramDataDecomp_BlkSize - 1)
 				 / QuramDataDecomp_BlkSize;
@@ -349,7 +371,7 @@ LONG	QuramDataDecompress(BYTE* pBlock, LONG nBlockSize, BYTE* pOutBlock)
 	nUnpSize = nBlks * QuramDataDecomp_BlkSize;
 	nUnpSize = MIN(nActualUnpSize, (nBlks * QuramDataDecomp_BlkSize));
 	IM_DataDecompress(pBlockData, nUnpSize, pDecoderOut,
-					  QuramDataDecomp_StdDistBits,QuramDataDecomp_ExtDistBits,
+					  QuramDataDecomp_ExtDistBits,QuramDataDecomp_StdDistBits,
 					  QuramDataDecomp_BlkSize, nStartBlk);
 	nOutSize = MIN(nBlockSize, (nActualUnpSize - nStartBlk));
 	ImasterMemcpy(pOutBlock, &pDecoderOut[nStartBlk], nOutSize);
@@ -358,39 +380,8 @@ LONG	QuramDataDecompress(BYTE* pBlock, LONG nBlockSize, BYTE* pOutBlock)
 	return nOutSize;
 }
 
-BOOL	QuramDataDecompShutdown()
+VOID			QuramDataDecompShutdown()
 {
 	FREE(QuramDataDecomp_BlockInfos);
 	FREE(QuramDataDecomp_BlockOffsets);
-	return TRUE;
-}
-
-/*
-**----------------------------------------------------------------------------
-**  Function(external use only) Declarations
-**----------------------------------------------------------------------------
-*/
-
-BOOL	Tk15_DataDecompInit(BYTE* pData, LONG nSize)
-{
-	return QuramDataDecompInit(pData, nSize);
-}
-
-LONG	Tk15_DataDecompress(BYTE* pBlock, LONG nBlockSize, 
-								 BYTE* pOutBlock)
-{
-	return QuramDataDecompress(pBlock, nBlockSize, pOutBlock);
-}
-
-VOID    Tk15_GetDecompInfo(LONG* pnBlockSize, LONG* pnOutSize)
-{
-	if (pnBlockSize)
-		*pnBlockSize = QuramDataDecomp_BlkSize;
-	if (pnOutSize)
-		*pnOutSize = QuramDataDecomp_DecompSize;
-}
-
-VOID	Tk15_DataDecompShutdown()
-{
-	QuramDataDecompShutdown();
 }

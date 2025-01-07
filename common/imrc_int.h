@@ -7,6 +7,7 @@
 ** History:
 ** when			who				what, where, why
 ** MM-DD-YYYY-- --------------- --------------------------------
+** 08/02/2024	raulmrio28-git	Reorganization
 ** 07/28/2024	raulmrio28-git	TK 1.0 compatibility (block offsets instead of
 **								sizes)						
 ** 05/16/2024	raulmrio28-git	Initial version
@@ -29,9 +30,14 @@
 */
 
 #define BSWAP_WORD(value)			((value>>8) | ((value&0xff)<<8))
-#define VERSION_TO_DOUBLE(nMajVer, nMinVer) (double)(nMajVer + ((double)nMinVer/10))
-#define VERSION_TO_DOUBLE_WRD(value) (double)((value>>8) + ((double)(value&0xff)/10))
-#define IMRC_MAGIC	'CRMI'
+#define B1(value)					(value&0xff)
+#define B2(value)					((value>>8)&0xff)
+#define B3(value)					((value>>16)&0xff)
+#define B4(value)					((value>>24)&0xff)
+#define VER2DOUBLE(dwVersion)		(B4(dwVersion)+(((B2(dwVersion)*10) \
+									+B3(dwVersion))/100))
+#define IMRC_MAGIC					'CRMI'
+#define BKI_SIZE					2*sizeof(DWORD)
 
 /*
 **----------------------------------------------------------------------------
