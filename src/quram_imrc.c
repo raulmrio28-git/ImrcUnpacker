@@ -2,11 +2,12 @@
 ** ===========================================================================
 ** File: quram_imrc.c
 ** Description: Code for Quram IMRC handling.
-** Copyright (c) 2024 raulmrio28-git and contributors.
+** Copyright (c) 2024-2025 raulmrio28-git and contributors.
 ** Format Copyright (C) 2008 Quram Co. Ltd.
 ** History:
 ** when			who				what, where, why
 ** MM-DD-YYYY-- --------------- --------------------------------
+** 01/07/2025	raulmrio28-git	Add missing functions
 ** 08/02/2024	raulmrio28-git	Reorganization. Add support for non-vesrsioned
 **								IMRC
 ** 05/15/2024	raulmrio28-git	Initial version
@@ -122,7 +123,6 @@ LOCAL	DWORD	IM_DataDecompress(BYTE* pInBlock, DWORD nOutSize,
 	nTotalBlks = nOutSize / nBlkSize + ((nOutSize % nBlkSize)!=0);
 	nRQMBBits = nExtDistBits + 4;
 	nFQMBBits = nExtDistBits + 6;
-	nUnpMblks = 0;
 	nTotalMblks = 0;
 	while (nTotalBlks)
 	{
@@ -133,6 +133,7 @@ LOCAL	DWORD	IM_DataDecompress(BYTE* pInBlock, DWORD nOutSize,
 			DWORD curr_mbk_wrd;
 			nCurrBits = 0;
 			bCmdBytes = 0;
+			nUnpMblks = 0;
 			pCmdBuf = pInBlock;
 			nOffs = 4;
 			if (!nTotalBlks && (((nOutSize - (nBlkSize
@@ -215,7 +216,7 @@ LOCAL	DWORD	IM_DataDecompress(BYTE* pInBlock, DWORD nOutSize,
 							{
 								BOOL literal;
 								EXTRACT_BIT(literal);
-								*(WORD*)&pCurrOut=(literal ? *(WORD*)pInBlock
+								*(WORD*)pCurrOut=(literal ? *(WORD*)pInBlock
 												: diffTbl[*pInBlock]
 												^*(WORD*)(pCurrOut-nOffs));
 								pInBlock += (literal ? 2 : 1);
@@ -269,7 +270,7 @@ LOCAL	DWORD	IM_DataDecompress(BYTE* pInBlock, DWORD nOutSize,
 **----------------------------------------------------------------------------
 */
 
-LONG			QuramDataDecompInit(BYTE* pData, LONG sz)
+LONG			QuramDataDecompInit(BYTE* pData)
 {
 	DWORD		dwMagic;
 	QuramDataDecomp_Input = pData;
@@ -297,6 +298,11 @@ LONG			QuramDataDecompInit(BYTE* pData, LONG sz)
 				nBkiOffs = sizeof(DWORD)+sizeof(tk15_IMRCHeader);
 				pstHeader = (tk15_IMRCHeader*)&pData[sizeof(DWORD)];
 			}
+		}
+		else
+		{
+			nBkiOffs = sizeof(DWORD) + sizeof(tk15_IMRCHeader);
+			pstHeader = (tk15_IMRCHeader*)&pData[sizeof(DWORD)];
 		}
 		QuramDataDecomp_BlkSize = pstHeader->nBlkSize;
 		QuramDataDecomp_ExtDistBits = pstHeader->nDistExtBits;
@@ -363,9 +369,9 @@ LONG			QuramDataDecompress(BYTE* pBlock, LONG nBlockSize,
 	nPackedSize = QuramDataDecomp_BlockOffsets[nStartBlk + nBlks]
 					- QuramDataDecomp_BlockOffsets[nStartBlk];
 	ALLOC_CHECK(pBlockData, nPackedSize, BYTE*, -1)
-	QuramFlashRead(pBlockData,
-			  &QuramDataDecomp_Input[QuramDataDecomp_BlockOffsets[nStartBlk]],
-			  nPackedSize);
+	QuramFlashRead(&QuramDataDecomp_Input[QuramDataDecomp_BlockOffsets[nStartBlk]],
+				   pBlockData,
+				   nPackedSize);
 	nActualUnpSize = QuramDataDecomp_DecompSize
 				   - (&pBlock[-nStartBlk] - QuramDataDecomp_Input);
 	nUnpSize = nBlks * QuramDataDecomp_BlkSize;
@@ -378,6 +384,58 @@ LONG			QuramDataDecompress(BYTE* pBlock, LONG nBlockSize,
 	ImasterMemFree(pDecoderOut);
 	ImasterMemFree(pBlockData);
 	return nOutSize;
+}
+
+LONG			QuramDataDecomp_GetHeaderInfo
+				(QuramDataDecomp_HdrInfo* pInfo)
+{
+	if (!QuramDataDecomp_BlockInfos)
+		return QURAM_FAIL;
+	pInfo->nDecompSize = QuramDataDecomp_DecompSize;
+	pInfo->nBlockSize = QuramDataDecomp_BlkSize;
+	return QURAM_SUCCESS;
+}
+
+LONG			QuramDataDecomp_Buf(BYTE* pIn, WORD* pOut)
+{
+	LONG		nOutSize;
+
+	QuramDataDecompInit(pIn);
+	nOutSize = QuramDataDecompress(QuramDataDecomp_Input,
+								   QuramDataDecomp_DecompSize,
+								   pOut);
+	QuramDataDecompShutdown();
+	return nOutSize;
+}
+
+LONG			QuramDataDecomp_Buf_GetHeaderInfo
+				(BYTE* pData, QuramDataDecomp_HdrInfo* pInfo)
+{
+	DWORD		dwMagic;
+	QuramDataDecomp_Input = pData;
+	ImasterMemcpy(&dwMagic, pData, sizeof(DWORD));
+	if (dwMagic == IMRC_MAGIC)
+	{
+		DWORD dwVersion;
+		tk15_IMRCHeader* pstHeader;
+		pstHeader = NULL;
+		//Check if input contains a version and not block size
+		ImasterMemcpy(&dwVersion, pData + sizeof(DWORD), sizeof(DWORD));
+		if (B4(dwVersion)) //possible version
+		{
+			DOUBLE dVersion = VER2DOUBLE(dwVersion);
+			if (dwVersion >= 2.0) //2.0 and up...
+				pstHeader = (tk15_IMRCHeader*)&pData[2 * sizeof(DWORD)];
+			else
+				pstHeader = (tk15_IMRCHeader*)&pData[sizeof(DWORD)];
+		}
+		else
+			pstHeader = (tk15_IMRCHeader*)&pData[sizeof(DWORD)];
+		pInfo->nBlockSize = pstHeader->nBlkSize;
+		pInfo->nDecompSize = pstHeader->nDecompSize;
+		return QURAM_SUCCESS;
+	}
+	return QURAM_FAIL;
 }
 
 VOID			QuramDataDecompShutdown()
