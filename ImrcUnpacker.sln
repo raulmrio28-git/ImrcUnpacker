@@ -19,7 +19,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "imrc2raw", "win\imrc2raw\im
 	ProjectSection(ProjectDependencies) = postProject
 		{50D36927-86A5-4101-BDC9-9D4CF0FC5F07} = {50D36927-86A5-4101-BDC9-9D4CF0FC5F07}
 		{7062CB8A-6C93-4F19-A7A2-A4D037665E9B} = {7062CB8A-6C93-4F19-A7A2-A4D037665E9B}
+		{97EF3E80-1BF3-4305-B423-3C9BA12A3293} = {97EF3E80-1BF3-4305-B423-3C9BA12A3293}
 	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "quram_qtc", "win\quram_qtc\quram_qtc.vcxproj", "{97EF3E80-1BF3-4305-B423-3C9BA12A3293}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -53,6 +56,14 @@ Global
 		{987D0A78-9E72-4F6F-B5FD-30C5904FB513}.Release|x64.Build.0 = Release|x64
 		{987D0A78-9E72-4F6F-B5FD-30C5904FB513}.Release|x86.ActiveCfg = Release|Win32
 		{987D0A78-9E72-4F6F-B5FD-30C5904FB513}.Release|x86.Build.0 = Release|Win32
+		{97EF3E80-1BF3-4305-B423-3C9BA12A3293}.Debug|x64.ActiveCfg = Debug|x64
+		{97EF3E80-1BF3-4305-B423-3C9BA12A3293}.Debug|x64.Build.0 = Debug|x64
+		{97EF3E80-1BF3-4305-B423-3C9BA12A3293}.Debug|x86.ActiveCfg = Debug|Win32
+		{97EF3E80-1BF3-4305-B423-3C9BA12A3293}.Debug|x86.Build.0 = Debug|Win32
+		{97EF3E80-1BF3-4305-B423-3C9BA12A3293}.Release|x64.ActiveCfg = Release|x64
+		{97EF3E80-1BF3-4305-B423-3C9BA12A3293}.Release|x64.Build.0 = Release|x64
+		{97EF3E80-1BF3-4305-B423-3C9BA12A3293}.Release|x86.ActiveCfg = Release|Win32
+		{97EF3E80-1BF3-4305-B423-3C9BA12A3293}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
