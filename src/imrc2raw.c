@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
 			BYTE* outbuff = NULL;
 			DWORD outlen = 0;
 			LONG ret;
-			if (*(DWORD*)&inbuff[4] >= 0x2000000 || *(DWORD*)&inbuff[4] == 0x1000)
+			if (*(DWORD*)&inbuff[4] >= 0x2000000 || (*(DWORD*)&inbuff[4] == 0x1000 && *(DWORD*)&inbuff[24] != 0))
 			{
 				QuramDataDecomp_HdrInfo hdri;
 				QuramDataDecomp_Buf_GetHeaderInfo(inbuff, &hdri);
