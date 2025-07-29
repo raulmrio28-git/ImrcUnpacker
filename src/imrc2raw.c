@@ -7,6 +7,7 @@
 ** History:
 ** when			who				what, where, why
 ** MM-DD-YYYY-- --------------- --------------------------------
+** 07/29/2025	raulmrio28-git	Fix IMRC type detection
 ** 01/07/2025	raulmrio28-git	Initial version
 ** ===========================================================================
 */
